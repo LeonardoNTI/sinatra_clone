@@ -3,14 +3,14 @@ class Request
   attr_reader :method, :resource, :version, :headers, :params
 
   def initialize(request_string)
-    # Dela upp hela request-strängen i rader
+    # Dela upp hela request-strängen
     lines = request_string.split("\n")
 
-    # Dela upp första raden för att få metod, resurs och version
+    # Dela upp första raden
     request_line = lines[0].split(" ")
-    @method = request_line[0]        # Första delen är metoden (GET, POST)
-    @resource = request_line[1]      # Andra delen är resursen (ex: /examples)
-    @version = request_line[2]       # Tredje delen är versionen (HTTP/1.1)
+    @method = request_line[0].downcase.to_sym  # Första -> metoden (GET, POST)
+    @resource = request_line[1]    #resurserna
+    @version = request_line[2]     #version
 
     # Initiera headers som en tom hash
     @headers = {}
@@ -25,7 +25,7 @@ class Request
     @params = {}
 
     # Hantera query-parametrar för GET
-    if @method == 'GET' && @resource.include?('?')
+    if @method == :get && @resource.include?('?')
       resource_parts = @resource.split('?')
       @resource = resource_parts[0]  # Uppdatera resursen utan query-strängen
       query_string = resource_parts[1] # Ta query-strängen
