@@ -1,0 +1,6 @@
+PUT /users/123 HTTP/1.1
+Host: example.com
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 33
+
+username=updatedUser&email=new@example.com

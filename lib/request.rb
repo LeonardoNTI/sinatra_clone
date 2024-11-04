@@ -6,20 +6,29 @@ class Request
     # Dela upp hela request-strängen
     lines = request_string.split("\n")
 
-    # Dela upp första raden
-    request_line = lines[0].split(" ")
-    @method = request_line[0].downcase.to_sym  # Första -> metoden (GET, POST)
-    @resource = request_line[1]    #resurserna
-    @version = request_line[2]     #version
-
     # Initiera headers som en tom hash
     @headers = {}
-    
-    # Hämta headers 
-    @headers['Host'] = lines[1].split(": ")[1] if lines[1]
-    @headers['User-Agent'] = lines[2].split(": ")[1] if lines[2]
-    @headers['Accept-Encoding'] = lines[3].split(": ")[1] if lines[3]
-    @headers['Accept'] = lines[4].split(": ")[1] if lines[4]
+
+    # Gå igenom raderna och hantera första raden separat
+    body_started = false
+    body_content = ""
+
+    lines.each do |line|
+      if line == lines[0]  # Hantera första raden
+        @method, @resource, @version = line.split(" ")
+        @method = @method.downcase.to_sym  # Första -> metoden (GET, POST)
+      elsif line.empty?  # Tom rad markerar slutet av headers och början av body
+        body_started = true
+      elsif body_started
+        # Efter tom rad börjar vi samla in body-innehåll (POST-data)
+        body_content << line
+      else  # Hantera headers
+        header_parts = line.split(": ")
+        if header_parts.size == 2
+          @headers[header_parts[0]] = header_parts[1]
+        end
+      end
+    end
 
     # Initiera params som en tom hash
     @params = {}
@@ -32,21 +41,25 @@ class Request
 
       # Dela upp query-strängen i individuella parametrar
       params_array = query_string.split('&')
-      key_value = params_array[0].split('=') # Första param
-      key = key_value[0]
-      value = key_value[1]
-      @params[key] = value if key && value
+      params_array.each do |param|
+        key_value = param.split('=')
+        key = key_value[0]
+        value = key_value[1]
+        @params[key] = value if key && value
+      end
+    end
+
+    # Hantera body-parametrar för POST
+    if @method == :post && !body_content.empty?
+      # Om det finns innehåll i kroppen, dela upp det på samma sätt som GET-parametrar
+      body_params = body_content.split('&')
+      body_params.each do |param|
+        key_value = param.split('=')
+        key = key_value[0]
+        value = key_value[1]
+        @params[key] = value if key && value
+      end
     end
   end
 end
 
-# Testa klassen med get-examples.request.txt
-request_string = File.read('spec/example_requests/get-examples.request.txt')
-request = Request.new(request_string)
-
-# Utskrift av resultat
-puts "Method: #{request.method}"       # Förväntat: GET
-puts "Resource: #{request.resource}"   # Förväntat: /examples
-puts "Version: #{request.version}"     # Förväntat: HTTP/1.1
-puts "Headers: #{request.headers}"     # Förväntat: Headers som definierats
-puts "Params: #{request.params}"       # Förväntat: {}
