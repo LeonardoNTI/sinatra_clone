@@ -3,63 +3,76 @@ class Request
   attr_reader :method, :resource, :version, :headers, :params
 
   def initialize(request_string)
-    # Dela upp hela request-strängen
     lines = request_string.split("\n")
-
-    # Initiera headers som en tom hash
     @headers = {}
-
-    # Gå igenom raderna och hantera första raden separat
-    body_started = false
-    body_content = ""
-
-    lines.each do |line|
-      if line == lines[0]  # Hantera första raden
-        @method, @resource, @version = line.split(" ")
-        @method = @method.downcase.to_sym  # Första -> metoden (GET, POST)
-      elsif line.empty?  # Tom rad markerar slutet av headers och början av body
-        body_started = true
-      elsif body_started
-        # Efter tom rad börjar vi samla in body-innehåll (POST-data)
-        body_content << line
-      else  # Hantera headers
-        header_parts = line.split(": ")
-        if header_parts.size == 2
-          @headers[header_parts[0]] = header_parts[1]
-        end
-      end
-    end
-
-    # Initiera params som en tom hash
     @params = {}
 
-    # Hantera query-parametrar för GET
-    if @method == :get && @resource.include?('?')
-      resource_parts = @resource.split('?')
-      @resource = resource_parts[0]  # Uppdatera resursen utan query-strängen
-      query_string = resource_parts[1] # Ta query-strängen
+    parse_first_line(lines[0])
+    body_content = parse_lines(lines[1..])
+    parse_query_params if @method == :get
+    parse_body_params(body_content) if @method == :post
+  end
 
-      # Dela upp query-strängen i individuella parametrar
-      params_array = query_string.split('&')
-      params_array.each do |param|
-        key_value = param.split('=')
-        key = key_value[0]
-        value = key_value[1]
-        @params[key] = value if key && value
-      end
+  private
+
+  # Hanterar första raden
+  def parse_first_line(line)
+    @method, @resource, @version = line.split(' ')
+    @method = @method.downcase.to_sym
+  end
+
+  # Hanterar headers och extraherar body-innehåll
+  def parse_lines(lines)
+    body_started = false
+    body_content = ''
+
+    lines.each { |line| body_started = process_line(line, body_started, body_content) }
+
+    body_content
+  end
+
+  # Ny metod som hanterar varje rad
+  def process_line(line, body_started, body_content)
+    if line.empty?
+      true
+    elsif body_started
+      append_body_content(body_content, line)
+      true
+    else
+      parse_header_line(line)
+      false
     end
+  end
 
-    # Hantera body-parametrar för POST
-    if @method == :post && !body_content.empty?
-      # Om det finns innehåll i kroppen, dela upp det på samma sätt som GET-parametrar
-      body_params = body_content.split('&')
-      body_params.each do |param|
-        key_value = param.split('=')
-        key = key_value[0]
-        value = key_value[1]
-        @params[key] = value if key && value
-      end
+  # Ny metod för att hantera en header-rad
+  def parse_header_line(line)
+    key, value = line.split(': ', 2)
+    @headers[key] = value if key && value
+  end
+
+  # Ny metod för att lägga till body-innehåll
+  def append_body_content(body_content, line)
+    body_content << line
+  end
+
+  # Hanterar query-parametrar för GET-förfrågningar
+  def parse_query_params
+    return unless @resource.include?('?')
+
+    @resource, query_string = @resource.split('?')
+    query_string.split('&').each do |param|
+      key, value = param.split('=', 2)
+      @params[key] = value if key && value
+    end
+  end
+
+  # Hanterar body-parametrar för POST-förfrågningar
+  def parse_body_params(body_content)
+    return if body_content.empty?
+
+    body_content.split('&').each do |param|
+      key, value = param.split('=', 2)
+      @params[key] = value if key && value
     end
   end
 end
-
