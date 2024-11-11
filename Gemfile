@@ -8,4 +8,5 @@ gem 'rubocop', '~> 1.68', require: false
 
 gem 'rubycritic', require: false
 
-gem 'simplecov', require: false
+gem 'simplecov', require: false, group: :test
+
