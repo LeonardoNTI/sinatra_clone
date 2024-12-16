@@ -14,12 +14,12 @@ class HTTPServer
       
         # Initialize Router and Add Routes
         router = Router.new
-        router.add_route('GET', '/') { [200, "<h2>Woot</h2>"] }
-        router.add_route('GET', '/banan') { [200, "<h2>wtt</h2>"] }
+        router.add_route('GET', '/') { [200, "<h2>Wooow</h2>"] }
+        router.add_route('GET', '/banan') { [200, "<h2>Helo</h2>"] }
         router.add_route('GET', '/about') { [200, "<h2>About This Server</h2>"] }
         router.add_route('POST', '/submit') { [200, "<h2>Form Submitted</h2>"] }
 
-        while session = server.accept
+        while session = server.accept 
             data = ""
             while line = session.gets and line !~ /^\s*$/
                 data += line
