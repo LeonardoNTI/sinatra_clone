@@ -1,6 +1,3 @@
-
-
-
 class Response
   attr_reader :status, :body, :headers
 
@@ -12,7 +9,7 @@ class Response
 
   def to_s
     # Convert the response into the appropriate HTTP format
-    response = "HTTP/1.1 #{status} #{status_message}\r\n"
+    response = "HTTP/1.1 #{@status} #{status_message}\r\n"
     @headers.each do |key, value|
       response += "#{key}: #{value}\r\n"
     end
@@ -25,6 +22,7 @@ class Response
   def status_message
     case @status
     when 200 then "OK"
+    when 302 then "Found" # 302 is for redirect
     when 404 then "Not Found"
     else "Unknown Status"
     end
