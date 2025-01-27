@@ -19,6 +19,11 @@ class HTTPServer
     router.add_route(:get, '/logged_in') { erb('logged_in') }
     router.add_route(:get, '/about') { "<h2>About This Server</h2>" }
     router.add_route(:get, '/login') { erb('login') }
+    router.add_route(:get, '/users/:id') do |request|
+      "<h1>User Profile</h1><p>Welcome, user with ID: #{request.params[:id]}</p>"
+    end
+    
+    
 
     router.add_route(:post, '/submit') { { redirect: '/logged_in' } }
 
