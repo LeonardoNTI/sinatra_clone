@@ -17,13 +17,12 @@ class HTTPServer
     router = Router.new
     router.add_route(:get, '/') { erb('index') }
     router.add_route(:get, '/logged_in') { erb('logged_in') }
-    router.add_route(:get, '/about') { "<h2>About This Server</h2>" }
+    router.add_route(:get, '/about') { erb('about')}
     router.add_route(:get, '/login') { erb('login') }
     router.add_route(:get, '/users/:id') do |request|
-      "<h1>User Profile</h1><p>Welcome, user with ID: #{request.params[:id]}</p>"
+      # Här genererar vi själva HTML-innehållet
+      "<h1>User Profile</h1><p>Welcome, user with ID: #{request.params[:id]}</p><a href='/'>Go back to Home</a>"
     end
-    
-    
 
     router.add_route(:post, '/submit') { { redirect: '/logged_in' } }
 
@@ -46,12 +45,34 @@ class HTTPServer
     end
   end
 
-  # Simplified erb method
-  def erb(html_file)
-    file = File.open("../views/#{html_file}.erb")  # Open the ERB file
-    ERB.new(file.read).result(binding)  # Render it and return the result
+  # Förenklad erb-metod som läser in vyfil och layout
+  def erb(view_file, use_layout = true)
+    view_path = "../views/#{view_file}.erb"
+    layout_path = "../views/layout.erb"
+
+    # Läs in vyfilen
+    begin
+      view_content = File.read(view_path)
+    rescue Errno::ENOENT => e
+      return "Error: View file #{view_file} not found."
+    end
+
+    # Om layout är påslagen, läs in layoutfilen
+    if use_layout
+      begin
+        layout_content = File.read(layout_path)
+      rescue Errno::ENOENT => e
+        return "Error: Layout file not found."
+      end
+
+      # Sätt in vyinnehållet i layoutens yield-område
+      layout_content.gsub('<%= yield %>', view_content)
+    else
+      view_content
+    end
   end
 end
 
+# Skapa och starta servern
 server = HTTPServer.new(4567)
 server.start

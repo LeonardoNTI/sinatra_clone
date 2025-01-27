@@ -1,0 +1,7 @@
+<!-- views/visit_user.erb -->
+<h1>Visit a User</h1>
+<form action="/users/<%= params[:id] %>" method="get">
+  <label for="user_id">Enter User ID:</label>
+  <input type="text" id="user_id" name="id">
+  <input type="submit" value="Visit">
+</form>

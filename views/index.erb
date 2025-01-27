@@ -1,3 +1,12 @@
-<h1>Welcome to My Sinatra Clone</h1>
-<p>This is the homepage!</p>
-<a href="/login">Go to Login</a>
+<%= yield %> <!-- Detta kommer att rendera din layout med header och footer -->
+
+<main style="text-align: center; padding: 50px;">
+    <h1>Welcome to My Sinatra Clone</h1>
+    <p>This is the homepage!</p>
+    <a href="/login">Go to Login</a>
+    
+    <!-- Här läggs bakgrundsbilden till -->
+    <div style="margin-top: 20px;">
+        <img src="../img/daniela-cuevas-t7YycgAoVSw-unsplash.jpg" alt="Hot Air Balloon" style="max-width: 100%; height: auto; border-radius: 10px;">
+    </div>
+</main>
