@@ -26,6 +26,13 @@ class HTTPServer
 
     router.add_route(:post, '/submit') { { redirect: '/logged_in' } }
 
+    router.add_route(:get, '/add/:num1/:num2') do |request|
+      num1 = request.params[:num1].to_i 
+      num2 = request.params[:num2].to_i
+      result = num1 + num2
+      "<h1>Resultat: #{num1} + #{num2} = #{result}</h1>"
+    end
+
     while session = server.accept
       data = ""
       while line = session.gets and line !~ /^\s*$/  # Read request headers
