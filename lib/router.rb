@@ -16,27 +16,32 @@ class Router
     puts "Matching route for method=#{method}, path=#{path}"  # Debugging
 
     if @routes[method]
-      @routes[method].each do |route|
+      # Använd find istället för each för att hitta den första matchande rutt
+      route = @routes[method].find do |route|
         match_data = route[:path][:regex].match(path)
-        puts "match_data: #{match_data.inspect}"  # Debugging match data
-
         if match_data
           params = extract_params(route[:path][:params], match_data)
-          puts "Extracted params: #{params.inspect}"  # Debugging params
           request.params.merge!(params)
-          response = route[:action].call(request)
+          true  # Om matchning hittades, returnera true för att stoppa vidare sökning
+        end
+      end
 
-          # Handle redirect if any
-          if response.is_a?(Hash) && response[:redirect]
-            return Response.new(302, "", { "Location" => response[:redirect] })
-          else
-            return Response.new(200, response)
-          end
+      # Om vi hittar en matchad route
+      if route
+        response = route[:action].call(request)
+
+        # Om det är en redirect (302)
+        if response.is_a?(Hash) && response[:redirect]
+          return Response.new(302, "", { "Location" => response[:redirect] })
+        else
+          # Logga full respons och ge tillbaka korrekt 200 OK
+          puts "Full response: #{response.to_s}"
+          return Response.new(200, response.body, response.headers)
         end
       end
     end
 
-    # Return 404 if no match is found
+    # Returnera 404 om ingen matchning hittades
     Response.new(404, "<h1>404 Not Found</h1>")
   end
 

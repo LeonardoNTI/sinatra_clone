@@ -34,43 +34,6 @@ class HTTPServer
       "<h1>Result: #{num1} + #{num2} = #{result}</h1>"
     end
 
-    router.add_route(:get, '/img/:url') do |request|
-      url = URI.decode_www_form_component(request.params[:url])
-      "<img src='#{url}'>"
-    end
-    
-    
-
-
-    # Serve static files (images, CSS, JS) from public directory
-    router.add_route(:get, '/img/:filename') do |request|
-      filename = request.params[:filename]
-      file_path = "./public/img/#{filename}"
-
-      # Check if the file exists
-      if File.exist?(file_path)
-        # Read the file as binary (for images)
-        begin
-          file_content = File.binread(file_path)
-        rescue => e
-          return Response.new(500, "<h1>Internal Server Error: #{e.message}</h1>")
-        end
-
-        # Determine content type based on the file extension
-        content_type = case File.extname(filename).downcase
-                       when '.jpg', '.jpeg' then 'image/jpeg'
-                       when '.png' then 'image/png'
-                       when '.gif' then 'image/gif'
-                       else 'application/octet-stream'  # Default for unknown file types
-                       end
-
-        # Return image with appropriate Content-Type
-        return Response.new(200, file_content, { "Content-Type" => content_type })
-      else
-        return Response.new(404, "<h1>Image Not Found</h1>")
-      end
-    end
-
     while session = server.accept
       data = ""
       while line = session.gets and line !~ /^\s*$/  # Read request headers
@@ -80,12 +43,63 @@ class HTTPServer
       puts "-" * 40
       puts data
       puts "-" * 40
-
+    
       request = Request.new(data)
-
+    
+      # Huvudlogik för att matcha route
       route = router.match_route(request)
+    
+      # Om vi inte hittar en matchande route
+      if route.status == 404
+        # Fanns det ingen matchande dynamisk route?
+        # Om inte, kolla i public-mappen för att hitta filen
+        filename = request.resource.split('/').last
+        # Använd File.join för att säkerställa att vi får rätt sökväg utan extra snedstreck
+        file_path = File.join('./public', request.resource)
+    
+        puts "No route found, checking file path: #{file_path}"
+    
+        if File.exist?(file_path)  # Kollar om filen existerar
+          begin
+            file_content = File.binread(file_path)  # Läser filen i binärt format
+          rescue => e
+            return Response.new(500, "<h1>Internal Server Error: #{e.message}</h1>")
+          end
+    
+          # Logga filens storlek
+          puts "File content size: #{file_content.bytesize} bytes"
+    
+          # Bestäm Content-Type baserat på filens extension
+          content_type = case File.extname(filename).downcase
+                         when '.jpg', '.jpeg' then 'image/jpeg'
+                         when '.png' then 'image/png'
+                         when '.gif' then 'image/gif'
+                         else 'application/octet-stream'
+                         end
+    
+          # Lägg till headers
+          headers = {
+            "Content-Type" => content_type,
+            "Content-Length" => file_content.bytesize.to_s
+          }
+    
+          # Skicka tillbaka filen som svar
+          session.print "HTTP/1.1 200 OK\r\n"
+          session.print "Content-Type: #{content_type}\r\n"
+          session.print "Content-Length: #{file_content.bytesize}\r\n"
+          session.print "\r\n"  # Header slut
 
-      session.print route.to_s  # Send the response to the client
+          session.write(file_content)  # Skicka själva filinnehållet
+        else
+          # Om filen inte finns
+          session.print "HTTP/1.1 404 Not Found\r\n"
+          session.print "Content-Type: text/html\r\n"
+          session.print "\r\n"
+          session.print "<h1>Image Not Found</h1>"
+        end
+      end
+    
+      # Skickar tillbaka den matchande ruttens svar
       session.close
     end
   end
