@@ -15,33 +15,35 @@ class Router
 
     puts "Matching route for method=#{method}, path=#{path}"  # Debugging
 
+    # Check for static files first (like /img/)
+    if path.start_with?('/img/')
+      puts "Static file requested: #{path}"
+      return nil  # Do not try to match this with dynamic routes, it's for static file handling
+    end
+
+    # Proceed to match dynamic routes if not a static file
     if @routes[method]
-      # Använd find istället för each för att hitta den första matchande rutt
-      route = @routes[method].find do |route|
+      @routes[method].each do |route|
         match_data = route[:path][:regex].match(path)
+        puts "match_data: #{match_data.inspect}"  # Debugging match data
+
         if match_data
           params = extract_params(route[:path][:params], match_data)
+          puts "Extracted params: #{params.inspect}"  # Debugging params
           request.params.merge!(params)
-          true  # Om matchning hittades, returnera true för att stoppa vidare sökning
-        end
-      end
+          response = route[:action].call(request)
 
-      # Om vi hittar en matchad route
-      if route
-        response = route[:action].call(request)
-
-        # Om det är en redirect (302)
-        if response.is_a?(Hash) && response[:redirect]
-          return Response.new(302, "", { "Location" => response[:redirect] })
-        else
-          # Logga full respons och ge tillbaka korrekt 200 OK
-          puts "Full response: #{response.to_s}"
-          return Response.new(200, response.body, response.headers)
+          # Handle redirect if any
+          if response.is_a?(Hash) && response[:redirect]
+            return Response.new(302, "", { "Location" => response[:redirect] })
+          else
+            return Response.new(200, response)
+          end
         end
       end
     end
 
-    # Returnera 404 om ingen matchning hittades
+    # Return 404 if no match is found
     Response.new(404, "<h1>404 Not Found</h1>")
   end
 

@@ -25,110 +25,113 @@ class HTTPServer
       "<h1>User Profile</h1><p>Welcome, user with ID: #{request.params[:id]}</p><a href='/'>Go back to Home</a>"
     end
 
-    router.add_route(:post, '/submit') { { redirect: '/logged_in' } }
-
-    router.add_route(:get, '/add/:num1/:num2') do |request|
-      num1 = request.params[:num1].to_i 
-      num2 = request.params[:num2].to_i
-      result = num1 + num2
-      "<h1>Result: #{num1} + #{num2} = #{result}</h1>"
+    router.add_route(:post, '/submit') do |request|
+      "<h1>Form submitted successfully!</h1><a href='/'>Back to home</a>"
     end
 
+    router.add_route(:get, '/add/:num1/:num2') do |request|
+      num1 = request.params[:num1].to_i
+      num2 = request.params[:num2].to_i
+      result = num1 + num2
+      "<h1>Result: #{num1} + #{num2} = #{result}</h1><a href='/'>Go back to Home</a>" 
+    end
+
+    # Main server loop
     while session = server.accept
       data = ""
       while line = session.gets and line !~ /^\s*$/  # Read request headers
         data += line
       end
+
+      # Felsökning: Skriv ut den mottagna förfrågan
       puts "RECEIVED REQUEST"
       puts "-" * 40
       puts data
       puts "-" * 40
-    
+
       request = Request.new(data)
-    
-      # Huvudlogik för att matcha route
+
+      # Felsökning: Skriv ut resursen som efterfrågas
+      puts "Request resource: #{request.resource}"
+
+      # Match route from router (dynamic routes)
       route = router.match_route(request)
-    
-      # Om vi inte hittar en matchande route
-      if route.status == 404
-        # Fanns det ingen matchande dynamisk route?
-        # Om inte, kolla i public-mappen för att hitta filen
+
+      if route
+        puts "Route matched successfully!"  # Felsökning: Skriv ut att en matchad rutt hittades
+        session.print route.to_s  # Send the response to the client
+      else
+        # Felsökning: Skriv ut att ingen rutt matchades
+        puts "No route matched for resource: #{request.resource}"
+
+        # Kontrollera om filen finns i 'public' (image handling)
         filename = request.resource.split('/').last
-        # Använd File.join för att säkerställa att vi får rätt sökväg utan extra snedstreck
-        file_path = File.join('./public', request.resource)
-    
-        puts "No route found, checking file path: #{file_path}"
-    
-        if File.exist?(file_path)  # Kollar om filen existerar
-          begin
-            file_content = File.binread(file_path)  # Läser filen i binärt format
-          rescue => e
-            return Response.new(500, "<h1>Internal Server Error: #{e.message}</h1>")
-          end
-    
-          # Logga filens storlek
-          puts "File content size: #{file_content.bytesize} bytes"
-    
-          # Bestäm Content-Type baserat på filens extension
+        file_path = "./public#{request.resource}"
+
+        # Felsökning: Visa exakt filväg som servern söker
+        puts "Looking for file at path: #{file_path}"
+
+        if File.exist?(file_path)
+          file_content = File.binread(file_path)
           content_type = case File.extname(filename).downcase
                          when '.jpg', '.jpeg' then 'image/jpeg'
                          when '.png' then 'image/png'
                          when '.gif' then 'image/gif'
                          else 'application/octet-stream'
                          end
-    
-          # Lägg till headers
-          headers = {
-            "Content-Type" => content_type,
-            "Content-Length" => file_content.bytesize.to_s
-          }
-    
-          # Skicka tillbaka filen som svar
+          
+          content_length = file_content.bytesize  # Beräkna korrekt filstorlek i bytes
+
+          # Felsökning: Skriv ut file content length
+          puts "File size: #{content_length} bytes"
+
+          # Skicka svar med korrekta HTTP-huvuden för statiska filer
           session.print "HTTP/1.1 200 OK\r\n"
           session.print "Content-Type: #{content_type}\r\n"
-          session.print "Content-Length: #{file_content.bytesize}\r\n"
-          session.print "\r\n"  # Header slut
-
-          session.write(file_content)  # Skicka själva filinnehållet
+          session.print "Content-Length: #{content_length}\r\n"  # Korrekt content-length
+          session.print "\r\n"  # End of headers
+          session.print file_content  # Skicka filinnehållet till klienten
         else
-          # Om filen inte finns
+          # Felsökning: Filen hittades inte
+          puts "File not found: #{file_path}"
+
           session.print "HTTP/1.1 404 Not Found\r\n"
           session.print "Content-Type: text/html\r\n"
           session.print "\r\n"
           session.print "<h1>Image Not Found</h1>"
         end
       end
-    
-      # Skickar tillbaka den matchande ruttens svar
+
       session.close
     end
   end
 
-  # Simplified ERB rendering method
+  # ERB rendering method with layout handling
   def erb(view_file, use_layout = true)
-    view_path = "./views/#{view_file}.erb"  # Adjust the path to be relative to the project root
-    layout_path = "./views/layout.erb"  # Same for the layout
+    view_path = "./views/#{view_file}.erb"
+    layout_path = "./views/layout.erb"
 
-    # Read view file
+    # Läs view-filen
     begin
       view_content = File.read(view_path)
     rescue Errno::ENOENT
-      return "Error: View file #{view_file} not found."
+      return Response.new(404, "<h1>Error: View file #{view_file} not found.</h1>")
     end
 
-    # Read layout if enabled
+    # Läs layout om det är aktiverat
     if use_layout
       begin
         layout_content = File.read(layout_path)
       rescue Errno::ENOENT
-        return "Error: Layout file not found."
+        return Response.new(500, "<h1>Error: Layout file not found.</h1>")
       end
 
-      # Insert view content into layout
-      layout_content.gsub('<%= yield %>', view_content)
+      final_content = layout_content.gsub('<%= yield %>', view_content)
     else
-      view_content
+      final_content = view_content
     end
+
+    Response.new(200, final_content, { "Content-Type" => "text/html" })
   end
 end
 
