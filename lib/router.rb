@@ -1,39 +1,37 @@
 class Router
   def initialize
-    @routes = {}
+    @routes = { get: [], post: [] }
   end
 
+  # Lägg till rutter både för GET och POST
   def add_route(method, path, &action)
     @routes[method] ||= []
     @routes[method] << { path: compile_path(path), action: action }
     puts "Route added for #{method}: #{path}"  # Debugging route addition
   end
 
+  # Matcha rätt rutt baserat på HTTP-metod och väg
   def match_route(request)
-    method = request.method
+    method = request.method.downcase.to_sym
     path = request.resource
 
-    puts "Matching route for method=#{method}, path=#{path}"  # Debugging
+    puts "Request found: #{method} #{path}"  # Debugging: Print request method and path
 
-    # Check for static files first (like /img/)
-    if path.start_with?('/img/')
-      puts "Static file requested: #{path}"
-      return nil  # Do not try to match this with dynamic routes, it's for static file handling
-    end
-
-    # Proceed to match dynamic routes if not a static file
     if @routes[method]
       @routes[method].each do |route|
-        match_data = route[:path][:regex].match(path)
-        puts "match_data: #{match_data.inspect}"  # Debugging match data
+        puts "Matching #{path} with route regex: #{route[:path][:regex]}"  # Debugging: Print matching regex
 
+        match_data = route[:path][:regex].match(path)
+        
         if match_data
+          # Extrahera parametrar från vägen om det finns några
           params = extract_params(route[:path][:params], match_data)
-          puts "Extracted params: #{params.inspect}"  # Debugging params
           request.params.merge!(params)
+
+          # Utför åtgärden för den matchade vägen
           response = route[:action].call(request)
 
-          # Handle redirect if any
+          # Hantera omdirigering om det finns
           if response.is_a?(Hash) && response[:redirect]
             return Response.new(302, "", { "Location" => response[:redirect] })
           else
@@ -43,12 +41,13 @@ class Router
       end
     end
 
-    # Return 404 if no match is found
+    # Returnera 404 om ingen matchning hittades
     Response.new(404, "<h1>404 Not Found</h1>")
   end
 
   private
 
+  # Kompilera vägen till en regex som kan matcha både statiska och dynamiska vägar
   def compile_path(path)
     if path == '/'
       return { regex: /^\/$/, params: [] }
@@ -56,9 +55,9 @@ class Router
 
     params = []
     regex_string = path.split('/').map do |segment|
-      if segment.start_with?(':')
-        params << segment[1..].to_sym
-        '([^/]+)'  # Match dynamic parameters
+      if segment.start_with?(':')  # Dynamisk parameter
+        params << segment[1..].to_sym  # Lägg till parameternamn
+        '([^/]+)'  # Matcha alla tecken för en dynamisk parameter
       else
         segment
       end
@@ -67,9 +66,10 @@ class Router
     { regex: Regexp.new("^#{regex_string}$"), params: params }
   end
 
+  # Extrahera parametrar baserat på vilken ordning de kommer i regex-matchen
   def extract_params(params, match_data)
     params.each_with_index.with_object({}) do |(param, index), hash|
-      hash[param] = match_data[index + 1]
+      hash[param] = match_data[index + 1]  # Extrahera parametrar baserat på deras position
     end
   end
 end
