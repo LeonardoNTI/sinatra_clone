@@ -77,6 +77,11 @@ class HTTPServer
                          when '.jpg', '.jpeg' then 'image/jpeg'
                          when '.png' then 'image/png'
                          when '.gif' then 'image/gif'
+                         when '.svg' then 'image/svg+xml'
+                         when '.ico' then 'image/x-icon'
+                         when '.html' then 'text/html'
+                         when '.css' then 'text/css'
+                         when '.js' then 'application/javascript'
                          else 'application/octet-stream'
                          end
           
