@@ -1,37 +1,43 @@
+# Handles route definitions and request matching for HTTP methods GET and POST.
 class Router
+  # Initializes a new Router with empty route definitions for GET and POST methods.
   def initialize
     @routes = { get: [], post: [] }
   end
 
-  # Lägg till rutter både för GET och POST
+  # Adds a new route for the specified HTTP method and path.
+  #
+  # @param method [Symbol] HTTP method (:get or :post).
+  # @param path [String] Route path (supports dynamic parameters, e.g., '/users/:id').
+  # @yield [request] The action to be performed when the route is matched.
   def add_route(method, path, &action)
     @routes[method] ||= []
     @routes[method] << { path: compile_path(path), action: action }
     puts "Route added for #{method}: #{path}"  # Debugging route addition
   end
 
-  # Matcha rätt rutt baserat på HTTP-metod och väg
+  # Matches an incoming request to the defined routes and executes the associated action.
+  #
+  # @param request [Request] The HTTP request object.
+  # @return [Response] The HTTP response object (200, 302 for redirects, or 404 if not found).
   def match_route(request)
     method = request.method.downcase.to_sym
     path = request.resource
 
-    puts "Request found: #{method} #{path}"  # Debugging: Print request method and path
+    puts "Request found: #{method} #{path}"  # Debugging
 
     if @routes[method]
       @routes[method].each do |route|
-        puts "Matching #{path} with route regex: #{route[:path][:regex]}"  # Debugging: Print matching regex
+        puts "Matching #{path} with route regex: #{route[:path][:regex]}"  # Debugging
 
         match_data = route[:path][:regex].match(path)
         
         if match_data
-          # Extrahera parametrar från vägen om det finns några
           params = extract_params(route[:path][:params], match_data)
           request.params.merge!(params)
 
-          # Utför åtgärden för den matchade vägen
           response = route[:action].call(request)
 
-          # Hantera omdirigering om det finns
           if response.is_a?(Hash) && response[:redirect]
             return Response.new(302, "", { "Location" => response[:redirect] })
           else
@@ -41,13 +47,17 @@ class Router
       end
     end
 
-    # Returnera 404 om ingen matchning hittades
     Response.new(404, "<h1>404 Not Found</h1>")
   end
 
   private
 
-  # Kompilera vägen till en regex som kan matcha både statiska och dynamiska vägar
+  # Compiles the given route path into a regular expression for matching requests.
+  #
+  # Supports dynamic parameters (e.g., '/users/:id').
+  #
+  # @param path [String] Route path to compile.
+  # @return [Hash] Contains the compiled regex and parameter names.
   def compile_path(path)
     if path == '/'
       return { regex: /^\/$/, params: [] }
@@ -55,9 +65,9 @@ class Router
 
     params = []
     regex_string = path.split('/').map do |segment|
-      if segment.start_with?(':')  # Dynamisk parameter
-        params << segment[1..].to_sym  # Lägg till parameternamn
-        '([^/]+)'  # Matcha alla tecken för en dynamisk parameter
+      if segment.start_with?(':')
+        params << segment[1..].to_sym
+        '([^/]+)'  # Match any character for dynamic parameter
       else
         segment
       end
@@ -66,10 +76,14 @@ class Router
     { regex: Regexp.new("^#{regex_string}$"), params: params }
   end
 
-  # Extrahera parametrar baserat på vilken ordning de kommer i regex-matchen
+  # Extracts dynamic parameters from the request path based on the route definition.
+  #
+  # @param params [Array<Symbol>] List of parameter names defined in the route.
+  # @param match_data [MatchData] Regex match data from the request path.
+  # @return [Hash{Symbol => String}] Extracted parameters and their values.
   def extract_params(params, match_data)
     params.each_with_index.with_object({}) do |(param, index), hash|
-      hash[param] = match_data[index + 1]  # Extrahera parametrar baserat på deras position
+      hash[param] = match_data[index + 1]
     end
   end
 end
